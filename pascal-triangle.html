@@ -594,13 +594,13 @@ Factor 13:
         }
 
         function censorTxn() {
-            if (alertShown) return; // Prevent multiple alerts
-
             // Check if a transaction is selected
             if (currentGroup.length === 0) {
-                alertShown = true;
-                alert('Select txn!');
-                setTimeout(() => alertShown = false, 100); // Reset flag after a short delay
+                if (!alertShown) {
+                    alertShown = true;
+                    alert('Select txn!');
+                    setTimeout(() => alertShown = false, 100); // Reset flag after a short delay
+                }
                 return;
             }
 
@@ -618,7 +618,7 @@ Factor 13:
             }
 
             // Alert for censoring transaction
-            alert('Censoring txn!');
+            alert('Censoring transaction!');
 
             // Strike through the text of the txn to indicate it is censored
             selectedTxn.style.textDecoration = 'line-through';
