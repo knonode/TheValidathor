@@ -306,15 +306,16 @@ Factor 13:
         const VALID_GROUP_SIZES = [3, 7, 11, 13];
         let currentGroup = [];
         let allGroups = [];
+        let alertShown = false; // Flag to prevent multiple alerts
 
         function isValidNextNumber(lastNumber, newNumber) {
             const newRow = parseInt(newNumber.getAttribute('data-row'));
-            
+
             // If this is the first number in the group, any number is valid
             if (currentGroup.length === 0) {
-                return true;
+                return !newNumber.classList.contains('censored'); // Ensure it's not censored
             }
-            
+
             // Check if the new number is already in the group
             const isAlreadyInGroup = currentGroup.some(elem => 
                 parseInt(elem.getAttribute('data-row')) === newRow
@@ -322,11 +323,11 @@ Factor 13:
             if (isAlreadyInGroup) {
                 return false;
             }
-            
+
             // Check if the new number is adjacent to ANY number in the current group
             return currentGroup.some(existingNumber => {
                 const existingRow = parseInt(existingNumber.getAttribute('data-row'));
-                return Math.abs(newRow - existingRow) === 1;
+                return Math.abs(newRow - existingRow) === 1 && !newNumber.classList.contains('censored');
             });
         }
 
@@ -593,9 +594,50 @@ Factor 13:
         }
 
         function censorTxn() {
-            alert('Censoring transaction!');
-            // Implement censor logic here
+            if (alertShown) return; // Prevent multiple alerts
+
+            // Check if a transaction is selected
+            if (currentGroup.length === 0) {
+                alertShown = true;
+                alert('Select txn!');
+                setTimeout(() => alertShown = false, 100); // Reset flag after a short delay
+                return;
+            }
+
+            // Get the last selected transaction
+            const selectedTxn = currentGroup[currentGroup.length - 1];
+
+            // Check if the selected txn is owned and not part of a validated block
+            if (!ownedPositions.has(selectedTxn)) {
+                alert('Txn not in mempool!');
+                return;
+            }
+            if (selectedTxn.classList.contains('validated')) {
+                alert('Txn must be in mempool');
+                return;
+            }
+
+            // Alert for censoring transaction
+            alert('Censoring txn!');
+
+            // Strike through the text of the txn to indicate it is censored
+            selectedTxn.style.textDecoration = 'line-through';
+            selectedTxn.classList.add('censored');
+
+            // Remove highlighting from the txn
+            selectedTxn.classList.remove('selected');
+            selectedTxn.style.backgroundColor = ''; // Reset background color if used for highlighting
+
+            // Remove the txn from the current group to prevent it from being used in a sequence
+            currentGroup = currentGroup.filter(txn => txn !== selectedTxn);
+            updateLines();
         }
+
+        // Ensure buttons are only clickable when a transaction is selected
+        document.querySelectorAll('.censor-button, .bottom-bar button:nth-child(3)').forEach(button => {
+            button.removeEventListener('click', censorTxn); // Remove any existing listeners
+            button.addEventListener('click', censorTxn, { once: true }); // Add the listener once
+        });
 
         function generatePascalTriangle() {
             const maxRow = 77;
