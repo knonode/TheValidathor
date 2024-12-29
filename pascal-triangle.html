@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Validathor</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chroma-js/2.1.0/chroma.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            background-color: #262626;
+            color: #d0f0f0;
+        }
+        .triangle-container {
+            max-width: 100%;
+            overflow-x: scroll;
+            padding: 20px;
+            -webkit-overflow-scrolling: touch;
+            scroll-behavior: smooth;
+            position: relative;
+        }
+        .triangle-wrapper {
+            min-width: min-content;
+            margin: 0 auto;
+            padding: 0 50vw;
+            box-sizing: border-box;
+            position: relative;
+        }
+        .row {
+            display: flex;
+            justify-content: center;
+            margin: 1px 0;
+            white-space: nowrap;
+            line-height: 1;
+            position: relative;
+            z-index: 2;
+        }
+        .row:nth-child(even) .number {
+            color: #b0e0e6; /* Light teal */
+        }
+        .row:nth-child(odd) .number {
+            color: #e0e0e0; /* Softer white */
+        }
+        .number {
+            padding: 1px 0;
+            margin: 0 1px;
+            font-family: monospace;
+            font-size: 12px;
+            letter-spacing: -1px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            position: relative;
+        }
+        .number.selected {
+            background-color: #a7ffea;
+            border-radius: 2px;
+        }
+        .number.parallel {
+            background-color: #4285F4; /* Google Blue */
+        }
+        .lines-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+        h1 {
+            text-align: center;
+            color: #d0f0f0;
+            margin: 20px 0;
+        }
+        .info {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #d0f0f0;
+        }
+        .button-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 10px 0;
+        }
+        .validate-button, .shuffle-button, .censor-button {
+            padding: 5px 10px;
+            font-size: 14px;
+            cursor: pointer;
+            margin: 0 5px;
+            border: 2px solid #ccc;
+            background-color: #333;
+            color: #d0f0f0;
+            box-shadow: 2px 2px 0 #fff inset, -2px -2px 0 #aaa inset;
+            font-family: 'Courier New', monospace;
+        }
+        .validate-button:active, .shuffle-button:active, .censor-button:active {
+            box-shadow: -2px -2px 0 #fff inset, 2px 2px 0 #aaa inset;
+        }
+        .input-field {
+            width: 60px;
+            text-align: center;
+            font-size: 16px;
+            margin: 0 5px;
+            border: 2px solid #ccc;
+            background-color: #333;
+            color: #d0f0f0;
+            box-shadow: 2px 2px 0 #fff inset, -2px -2px 0 #aaa inset;
+            font-family: 'Courier New', monospace;
+        }
+        .bottom-bar {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            background-color: #262626;
+            justify-content: space-around;
+            align-items: center;
+            padding: 10px 0;
+            z-index: 10;
+            pointer-events: auto;
+        }
+        .bottom-bar button {
+            flex: 1;
+            text-align: center;
+            font-size: 14px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            color: #d0f0f0;
+        }
+        .bottom-bar i {
+            display: block;
+            font-size: 20px;
+            margin-bottom: 3px;
+        }
+        .bottom-bar span {
+            font-size: 10px;
+        }
+        .floating-input {
+            display: none;
+            position: fixed;
+            bottom: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #333;
+            color: #d0f0f0;
+            padding: 10px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            border-radius: 5px;
+            z-index: 1000;
+        }
+        .floating-input input,
+        .floating-input button {
+            position: relative;
+            z-index: 1001;
+            pointer-events: auto;
+        }
+        .floating-input::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: -1;
+        }
+        @media (max-width: 768px) {
+            .button-container {
+                display: none;
+            }
+            .bottom-bar {
+                display: flex;
+            }
+            .triangle-container {
+                padding: 0;
+            }
+        }
+        .sequence-counter {
+            position: fixed;
+            right: 20px;
+            top: calc(20px + 1em);
+            font-family: monospace;
+            color: #e0e0e0;
+            font-size: 12px;
+            z-index: 1000;
+            padding: 10px;
+        }
+        .sequence-history {
+            position: fixed;
+            right: 20px;
+            top: calc(20px + 1em + 40px);
+            font-family: monospace;
+            color: #b0e0e6;
+            font-size: 12px;
+            z-index: 1000;
+            text-align: right;
+        }
+        .sequence-entry {
+            margin: 2px 0;
+        }
+        .title {
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        .info-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 2000;
+            padding: 20px;
+            color: #d0f0f0;
+            font-family: monospace;
+            white-space: pre-line;
+            overflow-y: auto;
+        }
+        
+        .info-content {
+            max-width: 800px;
+            margin: 20px auto;
+            line-height: 1.5;
+        }
+        .title {
+            text-align: center;
+            color: #d0f0f0;
+            margin: 20px 0;
+            user-select: none;
+        }
+        .info-icon {
+            font-size: 0.6em;
+            cursor: pointer;
+            opacity: 0.7;
+            transition: opacity 0.3s;
+        }
+        .info-icon:hover {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <h1 class="title">The Validathor <i class="fas fa-circle-question info-icon" onclick="toggleInfo()"></i></h1>
+    <div id="infoOverlay" class="info-overlay" onclick="toggleInfo()">
+        <div class="info-content">
+Shuffle a chosen amount of txn into your mempool.
+Create txn sequences - Blocks - of length 3, 7, 11 or 13 - prime factors of 3003.
+Blocks are made tapping txns next row up or down, ie must be sequential.
+Position in the row does not matter.
+Same base sequence Block can not be made twice.
+Only 278 Blocks can be validated out of 531,017 possible.
+Be the first among players to validate a Block, win rewards!
+Censor a txn to prevent others from completing a block.
+
+Total base sequences: 278
+Total possible position-aware sequences: 531,017
+
+Factor 3:
+  Base sequences: 148
+  Position-aware sequences: 185,925
+
+Factor 7:
+  Base sequences: 72
+  Position-aware sequences: 178,605
+
+Factor 11:
+  Base sequences: 40
+  Position-aware sequences: 121,275
+
+Factor 13:
+  Base sequences: 18
+  Position-aware sequences: 45,212
+
+        </div>
+    </div>
+    <div class="button-container">
+        <button class="shuffle-button" onclick="shuffle()">Go online</button>
+        <input type="number" class="input-field" id="shuffleInput" min="1" max="3003" placeholder="0">
+        <button class="validate-button" onclick="validateGroup()">Validate Block</button>
+        <button class="censor-button" onclick="censorTxn()">Censor txn</button>
+    </div>
+    <div class="triangle-container" id="container">
+        <div class="lines-container" id="lines"></div>
+        <div class="triangle-wrapper" id="triangle"></div>
+    </div>
+    <div class="sequence-counter">[0]</div>
+    <div class="sequence-history"></div>
+    <div class="bottom-bar">
+        <button onclick="showFloatingInput()"><i class="fas fa-dice"></i><span>Go online</span></button>
+        <button onclick="validateGroup()"><i class="fas fa-link"></i><span>Validate</span></button>
+        <button onclick="censorTxn()"><i class="fas fa-ban"></i><span>Censor</span></button>
+    </div>
+    <div class="floating-input" id="floatingInput">
+        <input type="number" class="input-field" id="mobileShuffleInput" min="1" max="3003" placeholder="0">
+        <button onclick="shuffleMobile()">OK</button>
+    </div>
+
+    <script>
+        let ownedPositions = new Set();  // Track owned positions
+        const VALID_GROUP_SIZES = [3, 7, 11, 13];
+        let currentGroup = [];
+        let allGroups = [];
+
+        function isValidNextNumber(lastNumber, newNumber) {
+            const newRow = parseInt(newNumber.getAttribute('data-row'));
+            
+            // If this is the first number in the group, any number is valid
+            if (currentGroup.length === 0) {
+                return true;
+            }
+            
+            // Check if the new number is already in the group
+            const isAlreadyInGroup = currentGroup.some(elem => 
+                parseInt(elem.getAttribute('data-row')) === newRow
+            );
+            if (isAlreadyInGroup) {
+                return false;
+            }
+            
+            // Check if the new number is adjacent to ANY number in the current group
+            return currentGroup.some(existingNumber => {
+                const existingRow = parseInt(existingNumber.getAttribute('data-row'));
+                return Math.abs(newRow - existingRow) === 1;
+            });
+        }
+
+        function resetCurrentGroup() {
+            // Remove highlighting from all numbers in current group
+            currentGroup.forEach(element => {
+                element.classList.remove('selected');
+            });
+            
+            // Clear lines for the current group
+            updateLines();
+
+            // Reset the group
+            currentGroup = [];
+            updateSequenceCounter(0);
+        }
+
+        function drawLine(elem1, elem2) {
+            const rect1 = elem1.getBoundingClientRect();
+            const rect2 = elem2.getBoundingClientRect();
+            const containerRect = document.getElementById('lines').getBoundingClientRect();
+
+            const line = document.createElement('div');
+            line.style.position = 'absolute';
+            line.style.backgroundColor = '#ffffe4';
+            line.style.height = '2px';
+            line.style.opacity = '0.6';  // Make lines slightly transparent
+
+            const x1 = (rect1.left + rect1.right) / 2 - containerRect.left;
+            const x2 = (rect2.left + rect2.right) / 2 - containerRect.left;
+            const y1 = (rect1.top + rect1.bottom) / 2 - containerRect.top;
+            const y2 = (rect2.top + rect2.bottom) / 2 - containerRect.top;
+
+            // Calculate line length and angle
+            const length = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+            const angle = Math.atan2(y2 - y1, x2 - x1);
+
+            line.style.width = `${length}px`;
+            line.style.left = `${x1}px`;
+            line.style.top = `${y1}px`;
+            line.style.transform = `rotate(${angle}rad)`;
+            line.style.transformOrigin = '0 0';
+
+            document.getElementById('lines').appendChild(line);
+        }
+
+        function updateLines() {
+            const linesContainer = document.getElementById('lines');
+            linesContainer.innerHTML = '';
+
+            // Draw lines for current group
+            if (currentGroup.length > 0) {
+                for (let i = 0; i < currentGroup.length; i++) {
+                    for (let j = i + 1; j < currentGroup.length; j++) {
+                        const row1 = parseInt(currentGroup[i].getAttribute('data-row'));
+                        const row2 = parseInt(currentGroup[j].getAttribute('data-row'));
+                        // Only draw lines between adjacent numbers
+                        if (Math.abs(row1 - row2) === 1) {
+                            drawLine(currentGroup[i], currentGroup[j]);
+                        }
+                    }
+                }
+            }
+
+            // Draw lines for validated groups
+            allGroups.forEach(group => {
+                for (let i = 0; i < group.length; i++) {
+                    for (let j = i + 1; j < group.length; j++) {
+                        const row1 = parseInt(group[i].getAttribute('data-row'));
+                        const row2 = parseInt(group[j].getAttribute('data-row'));
+                        if (Math.abs(row1 - row2) === 1) {
+                            drawLine(group[i], group[j]);
+                        }
+                    }
+                }
+            });
+        }
+
+        function handleNumberClick(event) {
+            const element = event.target;
+            
+            // Check if position is owned
+            if (!ownedPositions.has(element)) {
+                alert('This txn is not in mempool');
+                return;
+            }
+            
+            if (currentGroup.length > 0) {
+                // Check if this is a valid next number
+                if (!isValidNextNumber(currentGroup[currentGroup.length - 1], element)) {
+                    resetCurrentGroup();
+                    updateLines();
+                    return;
+                }
+            }
+
+            // If element is already in group, reset from that point
+            const existingIndex = currentGroup.indexOf(element);
+            if (existingIndex !== -1) {
+                // Remove all elements after this one
+                const elementsToRemove = currentGroup.slice(existingIndex + 1);
+                elementsToRemove.forEach(elem => elem.classList.remove('selected'));
+                currentGroup = currentGroup.slice(0, existingIndex + 1);
+                updateLines();
+                return;
+            }
+
+            element.classList.add('selected');
+            currentGroup.push(element);
+            updateLines();
+            
+            // Draw line to previous number if exists
+            if (currentGroup.length > 1) {
+                drawLine(currentGroup[currentGroup.length - 2], element);
+            }
+
+            // Update sequence counter
+            updateSequenceCounter(currentGroup.length);
+        }
+
+        function validateGroup() {
+            // Get sorted row numbers for current group
+            const currentRows = currentGroup.map(element => 
+                element.getAttribute('data-row')
+            ).sort().join('-');
+
+            // Check if the group has already been validated
+            const isDuplicate = allGroups.some(group => {
+                // Get sorted row numbers for existing group
+                const groupRows = group.map(element => 
+                    element.getAttribute('data-row')
+                ).sort().join('-');
+                
+                // Compare sorted sequences
+                return groupRows === currentRows;
+            });
+
+            if (isDuplicate) {
+                alert('This block has already been validated.');
+                resetCurrentGroup();
+                return;
+            }
+
+            if (VALID_GROUP_SIZES.includes(currentGroup.length)) {
+                addSequenceHistory(currentGroup);
+                alert('Valid block!');
+                const color = darkThemeColors[Math.floor(Math.random() * darkThemeColors.length)];
+                currentGroup.forEach(element => {
+                    element.classList.remove('selected');
+                    element.style.backgroundColor = color;
+                    element.classList.add('validated');
+                });
+                allGroups.push([...currentGroup]);
+                currentGroup = [];
+                updateLines();
+            } else {
+                alert('Invalid block size. Must be one of: ' + VALID_GROUP_SIZES.join(', '));
+                resetCurrentGroup();
+            }
+
+            // Reset counter after validation (success or failure)
+            updateSequenceCounter(0);
+        }
+
+        function shuffle() {
+            const input = document.getElementById('shuffleInput').value;
+            const num = parseInt(input, 10);
+
+            if (isNaN(num) || num < 1) {
+                alert('Minimum stake is one!.');
+                return;
+            }
+            if (num > 3003) {
+                alert('Maximum stake is 3003!');
+                return;
+            }
+
+            // Clear previously owned positions
+            ownedPositions.clear();
+            
+            // Reset any existing selections
+            resetCurrentGroup();
+            
+            // Get all available positions
+            const allPositions = document.querySelectorAll('.number');
+            const availablePositions = Array.from(allPositions);
+            
+            // Randomly select num positions
+            for (let i = 0; i < num; i++) {
+                if (availablePositions.length === 0) break;
+                const randomIndex = Math.floor(Math.random() * availablePositions.length);
+                const selectedPosition = availablePositions.splice(randomIndex, 1)[0];
+                ownedPositions.add(selectedPosition);
+                
+                // Highlight owned positions
+                selectedPosition.style.opacity = '1';
+            }
+            
+            // Dim non-owned positions
+            allPositions.forEach(pos => {
+                if (!ownedPositions.has(pos)) {
+                    pos.style.opacity = '0.3';
+                }
+            });
+
+            alert(`Going online with ${num}!`);
+        }
+
+        function shuffleMobile() {
+            const input = document.getElementById('mobileShuffleInput');
+            const num = parseInt(input.value, 10);
+            const floatingInput = document.getElementById('floatingInput');
+            
+            if (isNaN(num) || num < 1) {
+                alert('Minimum stake is one!.');
+                return;
+            }
+            if (num > 3003) {
+                alert('Maximum stake is 3003!');
+                return;
+            }
+            
+            floatingInput.style.display = 'none';
+            document.getElementById('container').style.pointerEvents = 'auto';
+            
+            // Clear previously owned positions
+            ownedPositions.clear();
+            
+            // Reset any existing selections
+            resetCurrentGroup();
+            
+            // Get all available positions
+            const allPositions = document.querySelectorAll('.number');
+            const availablePositions = Array.from(allPositions);
+            
+            // Randomly select num positions
+            for (let i = 0; i < num; i++) {
+                if (availablePositions.length === 0) break;
+                const randomIndex = Math.floor(Math.random() * availablePositions.length);
+                const selectedPosition = availablePositions.splice(randomIndex, 1)[0];
+                ownedPositions.add(selectedPosition);
+                
+                // Highlight owned positions
+                selectedPosition.style.opacity = '1';
+            }
+            
+            // Dim non-owned positions
+            allPositions.forEach(pos => {
+                if (!ownedPositions.has(pos)) {
+                    pos.style.opacity = '0.3';
+                }
+            });
+
+            alert(`Going online with ${num}!`);
+            
+            // Clear the input field
+            input.value = '';
+        }
+
+        function showFloatingInput() {
+            const floatingInput = document.getElementById('floatingInput');
+            floatingInput.style.display = 'block';
+            document.getElementById('container').style.pointerEvents = 'none';
+        }
+
+        function censorTxn() {
+            alert('Censoring transaction!');
+            // Implement censor logic here
+        }
+
+        function generatePascalTriangle() {
+            const maxRow = 77;
+            const triangle = [];
+            const container = document.getElementById('triangle');
+
+            // Generate triangle rows
+            for (let i = 0; i <= maxRow; i++) {
+                const currentRow = [];
+                for (let j = 0; j <= i; j++) {
+                    if (j === 0 || j === i) {
+                        currentRow.push(1);
+                    } else {
+                        const prevRow = triangle[i - 1];
+                        const num = prevRow[j - 1] + prevRow[j];
+                        currentRow.push(num);
+                    }
+                }
+                triangle.push(currentRow);
+            }
+
+            // Display the triangle
+            triangle.forEach((row, n) => {
+                const rowDiv = document.createElement('div');
+                rowDiv.className = 'row';
+                
+                row.forEach((num, r) => {
+                    const numSpan = document.createElement('span');
+                    numSpan.className = 'number';
+                    numSpan.textContent = `(${String(n).padStart(2,'0')}${String(r).padStart(2,'0')})`;
+                    numSpan.setAttribute('data-row', n);
+                    numSpan.setAttribute('data-col', r);
+                    
+                    numSpan.addEventListener('click', handleNumberClick);
+                    
+                    rowDiv.appendChild(numSpan);
+                });
+                
+                container.appendChild(rowDiv);
+            });
+
+            // Center the triangle after it's generated
+            const containerElement = document.getElementById('container');
+            containerElement.scrollLeft = (containerElement.scrollWidth - containerElement.clientWidth) / 2;
+        }
+
+        function updateSequenceCounter(count) {
+            const counter = document.querySelector('.sequence-counter');
+            counter.textContent = `[${count}]`;
+        }
+
+        function addSequenceHistory(group) {
+            const history = document.querySelector('.sequence-history');
+            const firstNum = group[0].getAttribute('data-row').padStart(2, '0') + 
+                            group[0].getAttribute('data-col').padStart(2, '0');
+            const lastNum = group[group.length - 1].getAttribute('data-row').padStart(2, '0') + 
+                           group[group.length - 1].getAttribute('data-col').padStart(2, '0');
+            const factor = group.length;
+            const entry = document.createElement('div');
+            entry.className = 'sequence-entry';
+            entry.textContent = `[0x${firstNum}${lastNum}${String(factor).padStart(2, '0')}]`;
+            history.insertBefore(entry, history.firstChild);
+        }
+
+        function generateDistinctColors(count) {
+            const colors = [];
+            const goldenRatio = 0.618033988749895;
+            let hue = Math.random();
+
+            for (let i = 0; i < count; i++) {
+                hue = (hue + goldenRatio) % 1;
+                const color = `hsl(${Math.floor(hue * 360)}, 85%, 70%)`;
+                colors.push(color);
+            }
+            return colors;
+        }
+
+        // Generate colors at startup
+        const darkThemeColors = generateDistinctColors(278);
+
+        document.addEventListener('click', function(event) {
+            // If click is outside any number element, reset everything
+            if (!event.target.classList.contains('number')) {
+                resetCurrentGroup();
+                updateLines();
+            }
+        });
+
+        window.onload = generatePascalTriangle;
+        window.onresize = updateLines; // Update lines on window resize
+
+        function toggleInfo() {
+            const overlay = document.getElementById('infoOverlay');
+            if (overlay.style.display === 'block') {
+                overlay.style.display = 'none';
+            } else {
+                overlay.style.display = 'block';
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Validathor</title>
+    <style>
+        body {
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: #262626;
+            font-family: Arial, sans-serif;
+        }
+
+        .logo {
+            max-width: 80%;
+            height: auto;
+            margin-bottom: 2rem;
+        }
+
+        .play-button {
+            padding: 1rem 3rem;
+            font-size: 1.5rem;
+            background-color: #333;
+            color: #d0f0f0;
+            border: 2px solid #d0f0f0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Courier New', monospace;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .play-button:hover {
+            background-color: #d0f0f0;
+            color: #262626;
+        }
+    </style>
+</head>
+<body>
+    <audio id="backgroundSound" src="riff.mp3"></audio>
+    <img src="Validathor.png" alt="The Validathor" class="logo">
+    <button class="play-button" onclick="window.location.href='pascal-triangle.html'">Play</button>
+
+    <script>
+        document.addEventListener('click', function playAudio() {
+            const sound = document.getElementById('backgroundSound');
+            sound.play().then(() => {
+                console.log('Audio is playing');
+                document.removeEventListener('click', playAudio); // Remove listener after playing
+            }).catch(error => {
+                console.error('Audio play failed:', error);
+            });
+        });
+    </script>
+</body>
+</html>
