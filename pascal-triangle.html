@@ -177,6 +177,7 @@
             }
             .triangle-container {
                 padding: 0;
+                padding-bottom: 70px;
             }
         }
         .sequence-counter {
@@ -249,17 +250,14 @@
     <h1 class="title">The Validathor <i class="fas fa-circle-question info-icon" onclick="toggleInfo()"></i></h1>
     <div id="infoOverlay" class="info-overlay" onclick="toggleInfo()">
         <div class="info-content">
-Shuffle a chosen amount of txn into your mempool.
-Create txn sequences - Blocks - of length 3, 7, 11 or 13 - prime factors of 3003.
+[Go online] - shuffle a chosen amount of txn into your mempool.
+[Validate block] - create txn sequences of length 3, 7, 11 or 13 - prime factors of 3003.
 Blocks are made tapping txns next row up or down, ie must be sequential.
 Position in the row does not matter.
 Same base sequence Block can not be made twice.
+[Censor] - censor a txn by burning it (ARC54) to prevent others from completing a block.
 Only 278 Blocks can be validated out of 531,017 possible.
-Be the first among players to validate a Block, win rewards!
-Censor a txn to prevent others from completing a block.
-
-Total base sequences: 278
-Total possible position-aware sequences: 531,017
+Be the first to validate a block of a certain sequence, win rewards!
 
 Factor 3:
   Base sequences: 148
@@ -280,10 +278,10 @@ Factor 13:
         </div>
     </div>
     <div class="button-container">
-        <button class="shuffle-button" onclick="shuffle()">Go online</button>
+        <button class="shuffle-button" onclick="shuffleNormal()">Go online</button>
         <input type="number" class="input-field" id="shuffleInput" min="1" max="3003" placeholder="0">
-        <button class="validate-button" onclick="validateGroup()">Validate Block</button>
-        <button class="censor-button" onclick="censorTxn()">Censor txn</button>
+        <button class="validate-button" onclick="validateGroup()">Validate</button>
+        <button class="censor-button" onclick="censorTxn()">Censor</button>
     </div>
     <div class="triangle-container" id="container">
         <div class="lines-container" id="lines"></div>
@@ -492,9 +490,8 @@ Factor 13:
             updateSequenceCounter(0);
         }
 
-        function shuffle() {
-            const input = document.getElementById('shuffleInput').value;
-            const num = parseInt(input, 10);
+        function shuffle(inputElement, isMobile = false) {
+            const num = parseInt(inputElement.value, 10);
 
             if (isNaN(num) || num < 1) {
                 alert('Minimum stake is one!.');
@@ -503,6 +500,12 @@ Factor 13:
             if (num > 3003) {
                 alert('Maximum stake is 3003!');
                 return;
+            }
+
+            if (isMobile) {
+                const floatingInput = document.getElementById('floatingInput');
+                floatingInput.style.display = 'none';
+                document.getElementById('container').style.pointerEvents = 'auto';
             }
 
             // Clear previously owned positions
@@ -515,57 +518,14 @@ Factor 13:
             const allPositions = document.querySelectorAll('.number');
             const availablePositions = Array.from(allPositions);
             
-            // Randomly select num positions
-            for (let i = 0; i < num; i++) {
-                if (availablePositions.length === 0) break;
-                const randomIndex = Math.floor(Math.random() * availablePositions.length);
-                const selectedPosition = availablePositions.splice(randomIndex, 1)[0];
-                ownedPositions.add(selectedPosition);
-                
-                // Highlight owned positions
-                selectedPosition.style.opacity = '1';
-            }
-            
-            // Dim non-owned positions
-            allPositions.forEach(pos => {
-                if (!ownedPositions.has(pos)) {
-                    pos.style.opacity = '0.3';
-                }
-            });
-
-            alert(`Going online with ${num}!`);
-        }
-
-        function shuffleMobile() {
-            const input = document.getElementById('mobileShuffleInput');
-            const num = parseInt(input.value, 10);
-            const floatingInput = document.getElementById('floatingInput');
-            
-            if (isNaN(num) || num < 1) {
-                alert('Minimum stake is one!.');
+            // Check if there are enough positions to select
+            if (availablePositions.length < num) {
+                alert(`Only ${availablePositions.length} positions available.`);
                 return;
             }
-            if (num > 3003) {
-                alert('Maximum stake is 3003!');
-                return;
-            }
-            
-            floatingInput.style.display = 'none';
-            document.getElementById('container').style.pointerEvents = 'auto';
-            
-            // Clear previously owned positions
-            ownedPositions.clear();
-            
-            // Reset any existing selections
-            resetCurrentGroup();
-            
-            // Get all available positions
-            const allPositions = document.querySelectorAll('.number');
-            const availablePositions = Array.from(allPositions);
-            
+
             // Randomly select num positions
             for (let i = 0; i < num; i++) {
-                if (availablePositions.length === 0) break;
                 const randomIndex = Math.floor(Math.random() * availablePositions.length);
                 const selectedPosition = availablePositions.splice(randomIndex, 1)[0];
                 ownedPositions.add(selectedPosition);
@@ -584,7 +544,19 @@ Factor 13:
             alert(`Going online with ${num}!`);
             
             // Clear the input field
-            input.value = '';
+            inputElement.value = '';
+        }
+
+        // Usage for normal view
+        function shuffleNormal() {
+            const input = document.getElementById('shuffleInput');
+            shuffle(input);
+        }
+
+        // Usage for mobile view
+        function shuffleMobile() {
+            const input = document.getElementById('mobileShuffleInput');
+            shuffle(input, true);
         }
 
         function showFloatingInput() {
@@ -645,7 +617,7 @@ Factor 13:
             const container = document.getElementById('triangle');
 
             // Generate triangle rows
-            for (let i = 0; i <= maxRow; i++) {
+            for (let i = 0; i < maxRow; i++) {
                 const currentRow = [];
                 for (let j = 0; j <= i; j++) {
                     if (j === 0 || j === i) {
