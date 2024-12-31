@@ -2,7 +2,8 @@
 A prototype for an on-chain multiplayer validator node simulation game.
 
 ## Game Overview
-The game consists of transactions (txn) that are minted as non-fungible tokens on the Algorand ledger. Each txn represents a number on a matrix. The matrix represents a ledger out of consensus. For each round the ledger forks, now 77 times. We need healthy validator nodes to bring the ledger back on track. Who will make the true path? Who will be .... The Validathor!!! 'cue metal guitar riff'
+The game consists of transactions (txn) that are minted as non-fungible tokens on the Algorand ledger. Each txn represents a number on a matrix. The matrix represents a ledger out of consensus. A bug has forked the chain 77 times. We need healthy nodes to bring the ledger back on track. Who will make the one true chain? Who will be .... The Validathor!!!
+'cue metal guitar riff'
 
 ## Game Start
 A game round starts with participants purchasing txns, or "Going online". Purchases should be random, either through a shuffle market app or prepaid and randomly distributed to Pera wallet inboxes or NFD vaults.

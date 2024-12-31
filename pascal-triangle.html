@@ -180,7 +180,7 @@
                 padding-bottom: 70px;
             }
         }
-        .sequence-counter {
+        .block-counter {
             position: fixed;
             right: 20px;
             top: calc(20px + 1em);
@@ -190,7 +190,7 @@
             z-index: 1000;
             padding: 10px;
         }
-        .sequence-history {
+        .block-history {
             position: fixed;
             right: 20px;
             top: calc(20px + 1em + 40px);
@@ -200,7 +200,7 @@
             z-index: 1000;
             text-align: right;
         }
-        .sequence-entry {
+        .block-entry {
             margin: 2px 0;
         }
         .title {
@@ -247,103 +247,161 @@
     </style>
 </head>
 <body>
-    <h1 class="title">The Validathor <i class="fas fa-circle-question info-icon" onclick="toggleInfo()"></i></h1>
-    <div id="infoOverlay" class="info-overlay" onclick="toggleInfo()">
+    <h1 class="title">The Validathor <i class="fas fa-circle-question info-icon" onclick="toggleInfoOverlay()"></i></h1>
+    <div id="infoOverlay" class="info-overlay" onclick="toggleInfoOverlay()">
         <div class="info-content">
-[Go online] - shuffle a chosen amount of txn into your mempool.
-[Validate block] - create txn sequences of length 3, 7, 11 or 13 - prime factors of 3003.
-Blocks are made tapping txns next row up or down, ie must be sequential.
-Position in the row does not matter.
-Same base sequence Block can not be made twice.
-[Censor] - censor a txn by burning it (ARC54) to prevent others from completing a block.
-Only 278 Blocks can be validated out of 531,017 possible.
-Be the first to validate a block of a certain sequence, win rewards!
+[Go online] - shuffle a chosen amount of txns into your mempool.
+[Validate] - create blocks of length 3, 7, 11 or 13 (prime factors of 3003).
+Blocks are created by selecting sequential txns from adjacent rows.
+- Must select from next row up or down
+- Position within row doesn't matter
+- Same block pattern cannot be validated twice
 
-Factor 3:
-  Base sequences: 148
-  Position-aware sequences: 185,925
+[Censor] - burn a txn (ARC54) to prevent others from completing blocks.
 
-Factor 7:
-  Base sequences: 72
-  Position-aware sequences: 178,605
+Total possible blocks: 278 out of 531,017 combinations
 
-Factor 11:
-  Base sequences: 40
-  Position-aware sequences: 121,275
+Block Statistics:
+Length 3:
+  Base blocks: 148
+  Position-aware combinations: 185,925
 
-Factor 13:
-  Base sequences: 18
-  Position-aware sequences: 45,212
+Length 7:
+  Base blocks: 72
+  Position-aware combinations: 178,605
+
+Length 11:
+  Base blocks: 40
+  Position-aware combinations: 121,275
+
+Length 13:
+  Base blocks: 18
+  Position-aware combinations: 45,212
+
+Be the first to validate a unique block pattern to win rewards!
 
         </div>
     </div>
     <div class="button-container">
-        <button class="shuffle-button" onclick="shuffleNormal()">Go online</button>
-        <input type="number" class="input-field" id="shuffleInput" min="1" max="3003" placeholder="0">
-        <button class="validate-button" onclick="validateGroup()">Validate</button>
-        <button class="censor-button" onclick="censorTxn()">Censor</button>
+        <button class="shuffle-button" onclick="shuffleNormalTxns()">Go online</button>
+        <input type="number" class="input-field" id="shuffleInput" min="1" placeholder="0">
+        <button class="validate-button" onclick="validateSelectedBlock()">Validate</button>
+        <button class="censor-button" onclick="censorSelectedTxn()">Censor</button>
     </div>
     <div class="triangle-container" id="container">
         <div class="lines-container" id="lines"></div>
         <div class="triangle-wrapper" id="triangle"></div>
     </div>
-    <div class="sequence-counter">[0]</div>
-    <div class="sequence-history"></div>
+    <div class="block-counter">[0]</div>
+    <div class="block-history"></div>
     <div class="bottom-bar">
-        <button onclick="showFloatingInput()"><i class="fas fa-dice"></i><span>Go online</span></button>
-        <button onclick="validateGroup()"><i class="fas fa-link"></i><span>Validate</span></button>
-        <button onclick="censorTxn()"><i class="fas fa-ban"></i><span>Censor</span></button>
+        <button onclick="showFloatingInputField()"><i class="fas fa-dice"></i><span>Go online</span></button>
+        <button onclick="validateSelectedBlock()"><i class="fas fa-link"></i><span>Validate</span></button>
+        <button onclick="censorSelectedTxn()"><i class="fas fa-ban"></i><span>Censor</span></button>
     </div>
     <div class="floating-input" id="floatingInput">
-        <input type="number" class="input-field" id="mobileShuffleInput" min="1" max="3003" placeholder="0">
-        <button onclick="shuffleMobile()">OK</button>
+        <input type="number" class="input-field" id="mobileShuffleInput" min="1" placeholder="0">
+        <button onclick="shuffleMobileTxns()">OK</button>
     </div>
 
     <script>
-        let ownedPositions = new Set();  // Track owned positions
-        const VALID_GROUP_SIZES = [3, 7, 11, 13];
-        let currentGroup = [];
-        let allGroups = [];
-        let alertShown = false; // Flag to prevent multiple alerts
+        // DOM element IDs
+        const DOM_IDS = {
+            SHUFFLE_INPUT: 'shuffleInput',
+            MOBILE_SHUFFLE_INPUT: 'mobileShuffleInput',
+            TRIANGLE: 'triangle',
+            CONTAINER: 'container',
+            LINES: 'lines',
+            INFO_OVERLAY: 'infoOverlay',
+            FLOATING_INPUT: 'floatingInput'
+        };
+
+        // Initialize constants first
+        const MAX_ROW = 77;
+        const TOTAL_TXNS = calculateTotalTxns(MAX_ROW);
+        const VALID_BLOCK_SIZES = getPrimeFactors(TOTAL_TXNS);
+        const DARK_THEME_COLORS = generateDistinctColors(278);
+
+        // Initialize variables
+        let ownedTxns = new Set();
+        let remainingTxns = TOTAL_TXNS;
+        let currentBlock = [];
+        let allBlocks = [];
+        let alertShown = false;
+
+        // CSS classes we use in JavaScript (for reference)
+        const CSS_CLASSES = {
+            CENSORED: 'censored',
+            VALIDATED: 'validated',
+            SELECTED: 'selected',
+            NUMBER: 'number'
+        };
+
+        // Calculate total number of transactions in the triangle
+        function calculateTotalTxns(rows) {
+            return (rows * (rows + 1)) / 2;
+        }
+
+        // Find prime factors of a number
+        function getPrimeFactors(n) {
+            const factors = [];
+            let divisor = 2;
+            
+            while (n > 1) {
+                if (n % divisor === 0) {
+                    factors.push(divisor);
+                    n = n / divisor;
+                } else {
+                    divisor++;
+                }
+            }
+            
+            return [...new Set(factors)]; // Remove duplicates
+        }
 
         function isValidNextNumber(lastNumber, newNumber) {
             const newRow = parseInt(newNumber.getAttribute('data-row'));
 
-            // If this is the first number in the group, any number is valid
-            if (currentGroup.length === 0) {
-                return !newNumber.classList.contains('censored'); // Ensure it's not censored
-            }
-
-            // Check if the new number is already in the group
-            const isAlreadyInGroup = currentGroup.some(elem => 
-                parseInt(elem.getAttribute('data-row')) === newRow
-            );
-            if (isAlreadyInGroup) {
+            // If transaction is censored or already validated, it's never valid
+            if (newNumber.classList.contains('censored') || newNumber.classList.contains('validated')) {
                 return false;
             }
 
-            // Check if the new number is adjacent to ANY number in the current group
-            return currentGroup.some(existingNumber => {
+            // If this is the first number in the block, any non-censored, non-validated number is valid
+            if (currentBlock.length === 0) {
+                return true;
+            }
+
+            // Check if the new number is already in the block
+            const isAlreadyInBlock = currentBlock.some(elem => 
+                parseInt(elem.getAttribute('data-row')) === newRow
+            );
+            if (isAlreadyInBlock) {
+                return false;
+            }
+
+            // Check if the new number is adjacent to ANY number in the current block
+            return currentBlock.some(existingNumber => {
                 const existingRow = parseInt(existingNumber.getAttribute('data-row'));
-                return Math.abs(newRow - existingRow) === 1 && !newNumber.classList.contains('censored');
+                return Math.abs(newRow - existingRow) === 1;
             });
         }
 
-        function resetCurrentGroup() {
-            // Remove highlighting from all numbers in current group
-            currentGroup.forEach(element => {
+        function resetCurrentBlock() {
+            // Remove highlighting from all numbers in current block
+            currentBlock.forEach(element => {
                 element.classList.remove('selected');
             });
             
-            // Clear lines for the current group
-            updateLines();
+            // Clear lines for the current block
+            updateBlockLines();
 
-            // Reset the group
-            currentGroup = [];
-            updateSequenceCounter(0);
+            // Reset the block
+            currentBlock = [];
+            updateBlockCounter(0);
         }
 
-        function drawLine(elem1, elem2) {
+        function drawBlockLine(elem1, elem2) {
             const rect1 = elem1.getBoundingClientRect();
             const rect2 = elem2.getBoundingClientRect();
             const containerRect = document.getElementById('lines').getBoundingClientRect();
@@ -352,14 +410,13 @@ Factor 13:
             line.style.position = 'absolute';
             line.style.backgroundColor = '#ffffe4';
             line.style.height = '2px';
-            line.style.opacity = '0.6';  // Make lines slightly transparent
+            line.style.opacity = '0.6';
 
             const x1 = (rect1.left + rect1.right) / 2 - containerRect.left;
             const x2 = (rect2.left + rect2.right) / 2 - containerRect.left;
             const y1 = (rect1.top + rect1.bottom) / 2 - containerRect.top;
             const y2 = (rect2.top + rect2.bottom) / 2 - containerRect.top;
 
-            // Calculate line length and angle
             const length = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
             const angle = Math.atan2(y2 - y1, x2 - x1);
 
@@ -372,202 +429,208 @@ Factor 13:
             document.getElementById('lines').appendChild(line);
         }
 
-        function updateLines() {
+        function updateBlockLines() {
             const linesContainer = document.getElementById('lines');
             linesContainer.innerHTML = '';
 
-            // Draw lines for current group
-            if (currentGroup.length > 0) {
-                for (let i = 0; i < currentGroup.length; i++) {
-                    for (let j = i + 1; j < currentGroup.length; j++) {
-                        const row1 = parseInt(currentGroup[i].getAttribute('data-row'));
-                        const row2 = parseInt(currentGroup[j].getAttribute('data-row'));
+            // Draw lines for current block
+            if (currentBlock.length > 0) {
+                for (let i = 0; i < currentBlock.length; i++) {
+                    for (let j = i + 1; j < currentBlock.length; j++) {
+                        const row1 = parseInt(currentBlock[i].getAttribute('data-row'));
+                        const row2 = parseInt(currentBlock[j].getAttribute('data-row'));
                         // Only draw lines between adjacent numbers
                         if (Math.abs(row1 - row2) === 1) {
-                            drawLine(currentGroup[i], currentGroup[j]);
+                            drawBlockLine(currentBlock[i], currentBlock[j]);
                         }
                     }
                 }
             }
 
-            // Draw lines for validated groups
-            allGroups.forEach(group => {
-                for (let i = 0; i < group.length; i++) {
-                    for (let j = i + 1; j < group.length; j++) {
-                        const row1 = parseInt(group[i].getAttribute('data-row'));
-                        const row2 = parseInt(group[j].getAttribute('data-row'));
+            // Draw lines for validated blocks
+            allBlocks.forEach(block => {
+                for (let i = 0; i < block.length; i++) {
+                    for (let j = i + 1; j < block.length; j++) {
+                        const row1 = parseInt(block[i].getAttribute('data-row'));
+                        const row2 = parseInt(block[j].getAttribute('data-row'));
                         if (Math.abs(row1 - row2) === 1) {
-                            drawLine(group[i], group[j]);
+                            drawBlockLine(block[i], block[j]);
                         }
                     }
                 }
             });
         }
 
-        function handleNumberClick(event) {
+        function handleTxnClick(event) {
             const element = event.target;
             
-            // Check if position is owned
-            if (!ownedPositions.has(element)) {
+            // Check if transaction is owned and not already validated or censored
+            if (!ownedTxns.has(element) || 
+                element.classList.contains('validated') || 
+                element.classList.contains('censored')) {
                 alert('This txn is not in mempool');
                 return;
             }
             
-            if (currentGroup.length > 0) {
+            if (currentBlock.length > 0) {
                 // Check if this is a valid next number
-                if (!isValidNextNumber(currentGroup[currentGroup.length - 1], element)) {
-                    resetCurrentGroup();
-                    updateLines();
+                if (!isValidNextNumber(currentBlock[currentBlock.length - 1], element)) {
+                    resetCurrentBlock();
+                    updateBlockLines();
                     return;
                 }
             }
 
-            // If element is already in group, reset from that point
-            const existingIndex = currentGroup.indexOf(element);
+            // If element is already in block, reset from that point
+            const existingIndex = currentBlock.indexOf(element);
             if (existingIndex !== -1) {
                 // Remove all elements after this one
-                const elementsToRemove = currentGroup.slice(existingIndex + 1);
+                const elementsToRemove = currentBlock.slice(existingIndex + 1);
                 elementsToRemove.forEach(elem => elem.classList.remove('selected'));
-                currentGroup = currentGroup.slice(0, existingIndex + 1);
-                updateLines();
+                currentBlock = currentBlock.slice(0, existingIndex + 1);
+                updateBlockLines();
                 return;
             }
 
             element.classList.add('selected');
-            currentGroup.push(element);
-            updateLines();
+            currentBlock.push(element);
+            updateBlockLines();
             
             // Draw line to previous number if exists
-            if (currentGroup.length > 1) {
-                drawLine(currentGroup[currentGroup.length - 2], element);
+            if (currentBlock.length > 1) {
+                drawBlockLine(currentBlock[currentBlock.length - 2], element);
             }
 
-            // Update sequence counter
-            updateSequenceCounter(currentGroup.length);
+            // Update block counter
+            updateBlockCounter(currentBlock.length);
         }
 
-        function validateGroup() {
-            // Get sorted row numbers for current group
-            const currentRows = currentGroup.map(element => 
+        function validateSelectedBlock() {
+            // Get sorted row numbers for current block
+            const currentRows = currentBlock.map(element => 
                 element.getAttribute('data-row')
             ).sort().join('-');
 
-            // Check if the group has already been validated
-            const isDuplicate = allGroups.some(group => {
-                // Get sorted row numbers for existing group
-                const groupRows = group.map(element => 
+            // Check if the block has already been validated
+            const isDuplicate = allBlocks.some(block => {
+                // Get sorted row numbers for existing block
+                const blockRows = block.map(element =>
                     element.getAttribute('data-row')
                 ).sort().join('-');
                 
-                // Compare sorted sequences
-                return groupRows === currentRows;
+                // Compare sorted blocks
+                return blockRows === currentRows;
             });
 
             if (isDuplicate) {
                 alert('This block has already been validated.');
-                resetCurrentGroup();
+                resetCurrentBlock();
                 return;
             }
 
-            if (VALID_GROUP_SIZES.includes(currentGroup.length)) {
-                addSequenceHistory(currentGroup);
+            if (VALID_BLOCK_SIZES.includes(currentBlock.length)) {
+                addBlockHistory(currentBlock);
                 alert('Valid block!');
-                const color = darkThemeColors[Math.floor(Math.random() * darkThemeColors.length)];
-                currentGroup.forEach(element => {
+                const color = DARK_THEME_COLORS[Math.floor(Math.random() * DARK_THEME_COLORS.length)];
+                currentBlock.forEach(element => {
                     element.classList.remove('selected');
                     element.style.backgroundColor = color;
                     element.classList.add('validated');
                 });
-                allGroups.push([...currentGroup]);
-                currentGroup = [];
-                updateLines();
+                allBlocks.push([...currentBlock]);
+                currentBlock = [];
+                updateBlockLines();
             } else {
-                alert('Invalid block size. Must be one of: ' + VALID_GROUP_SIZES.join(', '));
-                resetCurrentGroup();
+                alert('Invalid block size. Must be one of: ' + VALID_BLOCK_SIZES.join(', '));
+                resetCurrentBlock();
             }
 
             // Reset counter after validation (success or failure)
-            updateSequenceCounter(0);
+            updateBlockCounter(0);
         }
 
-        function shuffle(inputElement, isMobile = false) {
+        function shuffleTxnsToMempool(inputElement, isMobile = false) {
             const num = parseInt(inputElement.value, 10);
 
             if (isNaN(num) || num < 1) {
-                alert('Minimum stake is one!.');
+                alert('Minimum stake is one!');
                 return;
             }
-            if (num > 3003) {
-                alert('Maximum stake is 3003!');
+            if (num > remainingTxns) {
+                alert(`Only ${remainingTxns} txns available!`);
                 return;
             }
 
             if (isMobile) {
-                const floatingInput = document.getElementById('floatingInput');
+                const floatingInput = document.getElementById(DOM_IDS.FLOATING_INPUT);
                 floatingInput.style.display = 'none';
-                document.getElementById('container').style.pointerEvents = 'auto';
+                document.getElementById(DOM_IDS.CONTAINER).style.pointerEvents = 'auto';
             }
 
-            // Clear previously owned positions
-            ownedPositions.clear();
-            
-            // Reset any existing selections
-            resetCurrentGroup();
+            // Update remaining txns
+            remainingTxns -= num;
             
             // Get all available positions
             const allPositions = document.querySelectorAll('.number');
-            const availablePositions = Array.from(allPositions);
+            const availablePositions = Array.from(allPositions).filter(pos => 
+                !ownedTxns.has(pos) &&     // Changed from ownedPositions
+                !pos.classList.contains('censored') && 
+                !pos.classList.contains('validated')
+            );
             
             // Check if there are enough positions to select
             if (availablePositions.length < num) {
-                alert(`Only ${availablePositions.length} positions available.`);
+                alert(`Not enough available positions!`);
+                remainingTxns += num; // Restore the count if we can't complete the shuffle
                 return;
             }
 
-            // Randomly select num positions
+            // Randomly assign txns to positions
             for (let i = 0; i < num; i++) {
                 const randomIndex = Math.floor(Math.random() * availablePositions.length);
                 const selectedPosition = availablePositions.splice(randomIndex, 1)[0];
-                ownedPositions.add(selectedPosition);
+                ownedTxns.add(selectedPosition);    // Changed from ownedPositions
                 
-                // Highlight owned positions
+                // Highlight positions with owned txns
                 selectedPosition.style.opacity = '1';
             }
             
-            // Dim non-owned positions
+            // Dim positions without txns
             allPositions.forEach(pos => {
-                if (!ownedPositions.has(pos)) {
+                if (!ownedTxns.has(pos)) {    // Changed from ownedPositions
                     pos.style.opacity = '0.3';
                 }
             });
 
-            alert(`Going online with ${num}!`);
+            alert(`Going online with ${num} txn in the mempool! (${remainingTxns} txns remaining)`);
             
             // Clear the input field
             inputElement.value = '';
         }
 
         // Usage for normal view
-        function shuffleNormal() {
-            const input = document.getElementById('shuffleInput');
-            shuffle(input);
+        function shuffleNormalTxns() {
+            const input = document.getElementById(DOM_IDS.SHUFFLE_INPUT);
+            shuffleTxnsToMempool(input);
         }
 
         // Usage for mobile view
-        function shuffleMobile() {
-            const input = document.getElementById('mobileShuffleInput');
-            shuffle(input, true);
+        function shuffleMobileTxns() {
+            const input = document.getElementById(DOM_IDS.MOBILE_SHUFFLE_INPUT);
+            shuffleTxnsToMempool(input, true);
         }
 
-        function showFloatingInput() {
-            const floatingInput = document.getElementById('floatingInput');
+        function showFloatingInputField() {
+            const floatingInput = document.getElementById(DOM_IDS.FLOATING_INPUT);
+            const inputField = document.getElementById(DOM_IDS.MOBILE_SHUFFLE_INPUT);
             floatingInput.style.display = 'block';
-            document.getElementById('container').style.pointerEvents = 'none';
+            document.getElementById(DOM_IDS.CONTAINER).style.pointerEvents = 'none';
+            inputField.focus();
         }
 
-        function censorTxn() {
+        function censorSelectedTxn() {
             // Check if a transaction is selected
-            if (currentGroup.length === 0) {
+            if (currentBlock.length === 0) {
                 if (!alertShown) {
                     alertShown = true;
                     alert('Select txn!');
@@ -577,10 +640,10 @@ Factor 13:
             }
 
             // Get the last selected transaction
-            const selectedTxn = currentGroup[currentGroup.length - 1];
+            const selectedTxn = currentBlock[currentBlock.length - 1];
 
             // Check if the selected txn is owned and not part of a validated block
-            if (!ownedPositions.has(selectedTxn)) {
+            if (!ownedTxns.has(selectedTxn)) {
                 alert('Txn not in mempool!');
                 return;
             }
@@ -589,6 +652,9 @@ Factor 13:
                 return;
             }
 
+            // Set flag to prevent "Select txn" alert
+            alertShown = true;
+            
             // Alert for censoring transaction
             alert('Censoring transaction!');
 
@@ -600,24 +666,26 @@ Factor 13:
             selectedTxn.classList.remove('selected');
             selectedTxn.style.backgroundColor = ''; // Reset background color if used for highlighting
 
-            // Remove the txn from the current group to prevent it from being used in a sequence
-            currentGroup = currentGroup.filter(txn => txn !== selectedTxn);
-            updateLines();
+            // Filter out the censored txn from current block to prevent its use in block validation
+            currentBlock = currentBlock.filter(txn => txn !== selectedTxn);
+            updateBlockLines();
+
+            // Reset alert flag after a delay
+            setTimeout(() => alertShown = false, 100);
         }
 
         // Ensure buttons are only clickable when a transaction is selected
         document.querySelectorAll('.censor-button, .bottom-bar button:nth-child(3)').forEach(button => {
-            button.removeEventListener('click', censorTxn); // Remove any existing listeners
-            button.addEventListener('click', censorTxn, { once: true }); // Add the listener once
+            button.removeEventListener('click', censorSelectedTxn); // Remove any existing listeners
+            button.addEventListener('click', censorSelectedTxn, { once: true }); // Add the listener once
         });
 
         function generatePascalTriangle() {
-            const maxRow = 77;
             const triangle = [];
-            const container = document.getElementById('triangle');
+            const container = document.getElementById(DOM_IDS.TRIANGLE);
 
             // Generate triangle rows
-            for (let i = 0; i < maxRow; i++) {
+            for (let i = 0; i < MAX_ROW; i++) {
                 const currentRow = [];
                 for (let j = 0; j <= i; j++) {
                     if (j === 0 || j === i) {
@@ -643,7 +711,7 @@ Factor 13:
                     numSpan.setAttribute('data-row', n);
                     numSpan.setAttribute('data-col', r);
                     
-                    numSpan.addEventListener('click', handleNumberClick);
+                    numSpan.addEventListener('click', handleTxnClick);
                     
                     rowDiv.appendChild(numSpan);
                 });
@@ -652,57 +720,75 @@ Factor 13:
             });
 
             // Center the triangle after it's generated
-            const containerElement = document.getElementById('container');
+            const containerElement = document.getElementById(DOM_IDS.CONTAINER);
             containerElement.scrollLeft = (containerElement.scrollWidth - containerElement.clientWidth) / 2;
         }
 
-        function updateSequenceCounter(count) {
-            const counter = document.querySelector('.sequence-counter');
+        function updateBlockCounter(count) {
+            const counter = document.querySelector('.block-counter');
             counter.textContent = `[${count}]`;
         }
 
-        function addSequenceHistory(group) {
-            const history = document.querySelector('.sequence-history');
-            const firstNum = group[0].getAttribute('data-row').padStart(2, '0') + 
-                            group[0].getAttribute('data-col').padStart(2, '0');
-            const lastNum = group[group.length - 1].getAttribute('data-row').padStart(2, '0') + 
-                           group[group.length - 1].getAttribute('data-col').padStart(2, '0');
-            const factor = group.length;
+        function addBlockHistory(block) {
+            const history = document.querySelector('.block-history');
+            const firstNum = block[0].getAttribute('data-row').padStart(2, '0') + 
+                           block[0].getAttribute('data-col').padStart(2, '0');
+            const lastNum = block[block.length - 1].getAttribute('data-row').padStart(2, '0') + 
+                          block[block.length - 1].getAttribute('data-col').padStart(2, '0');
+            const blockSize = block.length;
             const entry = document.createElement('div');
-            entry.className = 'sequence-entry';
-            entry.textContent = `[0x${firstNum}${lastNum}${String(factor).padStart(2, '0')}]`;
+            entry.className = 'block-entry';
+            entry.textContent = `[0x${firstNum}${lastNum}${String(blockSize).padStart(2, '0')}]`;
             history.insertBefore(entry, history.firstChild);
         }
 
         function generateDistinctColors(count) {
             const colors = [];
-            const goldenRatio = 0.618033988749895;
+            const GOLDEN_RATIO = 0.618033988749895;
             let hue = Math.random();
 
             for (let i = 0; i < count; i++) {
-                hue = (hue + goldenRatio) % 1;
+                hue = (hue + GOLDEN_RATIO) % 1;
                 const color = `hsl(${Math.floor(hue * 360)}, 85%, 70%)`;
                 colors.push(color);
             }
             return colors;
         }
 
-        // Generate colors at startup
-        const darkThemeColors = generateDistinctColors(278);
-
         document.addEventListener('click', function(event) {
             // If click is outside any number element, reset everything
             if (!event.target.classList.contains('number')) {
-                resetCurrentGroup();
-                updateLines();
+                resetCurrentBlock();
+                updateBlockLines();
             }
         });
 
-        window.onload = generatePascalTriangle;
-        window.onresize = updateLines; // Update lines on window resize
+        // Event handlers
+        window.onload = function initializeApp() {  // Named the function for clarity
+            generatePascalTriangle();
+            
+            // Set max values for input fields
+            document.getElementById(DOM_IDS.SHUFFLE_INPUT).max = TOTAL_TXNS;
+            document.getElementById(DOM_IDS.MOBILE_SHUFFLE_INPUT).max = TOTAL_TXNS;
+            
+            // Add event listeners for Enter key
+            document.getElementById(DOM_IDS.SHUFFLE_INPUT).addEventListener('keypress', function(event) {
+                if (event.key === 'Enter') {
+                    shuffleNormalTxns();
+                }
+            });
 
-        function toggleInfo() {
-            const overlay = document.getElementById('infoOverlay');
+            document.getElementById(DOM_IDS.MOBILE_SHUFFLE_INPUT).addEventListener('keypress', function(event) {
+                if (event.key === 'Enter') {
+                    shuffleMobileTxns();
+                }
+            });
+        };
+
+        window.onresize = updateBlockLines;  // Using our renamed function
+
+        function toggleInfoOverlay() {
+            const overlay = document.getElementById(DOM_IDS.INFO_OVERLAY);
             if (overlay.style.display === 'block') {
                 overlay.style.display = 'none';
             } else {
