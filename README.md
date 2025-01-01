@@ -51,4 +51,6 @@ The next round can be constructed with the same structure but different number o
 While custom-made block-building bots are possible regardless of the distribution model, using prepaid assets randomized in time and/or amount should help mitigate their advantage. Having to purchase missing txns for a wanted block on the secondary market could add another threshold for bots and further reduce their advantage.
 
 ## Current Status
-Currently, The Validathor exists as a one-player prototype in vanilla HTML, CSS, and JS. I don't have the skills (yet) to create a true web3 game, so if you want to join in building it, I would be very happy. If you'd like to steal the idea, I would only be a little happy.
+Currently, The Validathor exists as a one-player prototype in vanilla HTML, CSS, and JS. 
+It is written with the help of Cursor IDE, mostly Claude 3.5 sonnet.
+I don't have the skills (yet) to create a true web3 game, so if you want to join in building it, I would be very happy. If you'd like to steal the idea, I would only be a little happy.
