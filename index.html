@@ -39,23 +39,72 @@
             background-color: #d0f0f0;
             color: #262626;
         }
+
+        .intro-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            cursor: pointer;
+        }
+
+        .intro-text {
+            color: #d0f0f0;
+            font-family: 'Courier New', monospace;
+            text-align: center;
+            max-width: 80%;
+            line-height: 1.6;
+            font-size: 1.2rem;
+            animation: fadeIn 2s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
     </style>
 </head>
 <body>
     <audio id="backgroundSound" src="riff.mp3"></audio>
     <img src="Validathor.png" alt="The Validathor" class="logo">
-    <button class="play-button" onclick="window.location.href='pascal-triangle.html'">Play</button>
+    <button class="play-button" onclick="showIntro()">Play</button>
+
+    <div id="introOverlay" class="intro-overlay" onclick="startGame()">
+        <div class="intro-text">
+            A bug has forked the chain 77 times.<br><br>
+            We need healthy nodes to bring the ledger back on track.<br><br>
+            Who will make the one true chain?<br><br>
+            Who will be....<br><br>
+            <span style="font-size: 1.5em; letter-spacing: 3px;">The Validathor!!!</span><br><br>
+            <span style="font-size: 0.8em; opacity: 0.7">(Click anywhere to continue)</span>
+        </div>
+    </div>
 
     <script>
-        document.addEventListener('click', function playAudio() {
+        function showIntro() {
+            const overlay = document.getElementById('introOverlay');
+            overlay.style.display = 'flex';
+            playAudio();
+        }
+
+        function startGame() {
+            window.location.href = 'pascal-triangle.html';
+        }
+
+        function playAudio() {
             const sound = document.getElementById('backgroundSound');
             sound.play().then(() => {
                 console.log('Audio is playing');
-                document.removeEventListener('click', playAudio); // Remove listener after playing
             }).catch(error => {
                 console.error('Audio play failed:', error);
             });
-        });
+        }
     </script>
 </body>
 </html>
